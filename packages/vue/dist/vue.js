@@ -2,12 +2,31 @@ var Vue = (function (exports) {
     'use strict';
 
     /**
+     * 收集所有依赖的 WeakMap 实例
+     * 1. key: 响应性对象
+     * 2. value: Map 对象
+     *    1. key: 响应性对象的指定属性
+     *    2. value: 指定对象的指定属性和执行函数
+     */
+    var targetMap = new WeakMap();
+    /**
      * 用于收集依赖的方法
      * @param target WeakMap 的 key
      * @param key 代理对象的 key，当依赖触发时，需要根据该 key 获取
      */
     function track(target, key) {
-        console.log('收集依赖', target, key);
+        // 如果当前不存在执行函数，则直接 return
+        if (!activeEffect)
+            return;
+        // 尝试从 targetMap 中，根据 target 获取 map
+        var depsMap = targetMap.get(target);
+        // 如果获取到的 map 不存在，则生成新的 map 对象， 并把该对象赋值给对应的 value
+        if (!depsMap) {
+            targetMap.set(target, (depsMap = new Map()));
+        }
+        // 为指定 map,指定 key 设置回调函数
+        depsMap.set(key, activeEffect);
+        console.log('收集依赖', targetMap);
     }
     /**
      * 触发依赖的方法
@@ -15,8 +34,51 @@ var Vue = (function (exports) {
      * @param key 代理对象的 key，当依赖被触发时，需要根据该 key 获取
      * @param newValue 指定 key 的最新值
      */
-    function trigger(target, key, newValue) {
-        console.log('触发依赖', target, key, newValue);
+    function trigger(target, key) {
+        // 依据 target 获取存储的 map 实例
+        var depsMap = targetMap.get(target);
+        // 如果 map 不存在，则直接 return
+        if (!depsMap)
+            return;
+        // 依据 key，从 depsMap 中取出 value，该 value 是一个 ReactiveEffect 类型的数据
+        var effect = depsMap.get(key);
+        // 如果 effect 不存在，则直接 return
+        if (!effect)
+            return;
+        // 执行 effect 中保存的函数
+        effect.fn();
+        console.log('触发依赖', target, key);
+    }
+    /**
+     * 单例的，当前的 effect
+     */
+    var activeEffect;
+    /**
+     * 响应性触发依赖时的执行类
+     */
+    var ReactiveEffect = /** @class */ (function () {
+        function ReactiveEffect(fn) {
+            this.fn = fn;
+        }
+        ReactiveEffect.prototype.run = function () {
+            // 为 activeEffect 赋值
+            activeEffect = this;
+            // 执行 fn 函数
+            return this.fn();
+        };
+        return ReactiveEffect;
+    }());
+    /**
+     * effect 函数
+     * @param fn 执行方法
+     * @returns 以 ReactiveEffect 实例为 this 的执行函数
+     */
+    function effect(fn) {
+        // 生成 ReactiveEffect 实例
+        var _effect = new ReactiveEffect(fn);
+        console.log({ _effect: _effect });
+        // 执行 run 函数
+        _effect.run();
     }
 
     /**
@@ -47,7 +109,7 @@ var Vue = (function (exports) {
     function createSetter() {
         return function set(target, key, value, receiver) {
             var result = Reflect.set(target, key, value, receiver);
-            trigger(target, key, value);
+            trigger(target, key);
             return result;
         };
     }
@@ -86,6 +148,7 @@ var Vue = (function (exports) {
         return proxy;
     }
 
+    exports.effect = effect;
     exports.reactive = reactive;
 
     Object.defineProperty(exports, '__esModule', { value: true });
