@@ -1,4 +1,6 @@
-type KeyToDepMap = Map<any, ReactiveEffect>
+import { Dep, createDep } from './deps'
+
+type KeyToDepMap = Map<any, Dep>
 /**
  * 收集所有依赖的 WeakMap 实例
  * 1. key: 响应性对象
@@ -22,10 +24,23 @@ export function track(target: object, key: unknown) {
   if (!depsMap) {
     targetMap.set(target, (depsMap = new Map()))
   }
-  // 为指定 map,指定 key 设置回调函数
-  depsMap.set(key, activeEffect)
 
+  let dep = depsMap.get(key)
+  // 如果 dep 不存在， 则生成一个新的 dep， 并放入到deosMap 中
+  if (!dep) {
+    depsMap.set(key, (dep = createDep()))
+  }
+
+  trackEffects(dep)
   console.log('收集依赖', targetMap)
+}
+
+/**
+ * 利用 dep 依此跟踪 key 的所有 effect
+ * @param dep
+ */
+export function trackEffects(dep: Dep) {
+  dep.add(activeEffect!)
 }
 
 /**
@@ -38,14 +53,17 @@ export function trigger(target: object, key: unknown) {
   // 依据 target 获取存储的 map 实例
   const depsMap = targetMap.get(target)
   // 如果 map 不存在，则直接 return
-  if (!depsMap) return
-  // 依据 key，从 depsMap 中取出 value，该 value 是一个 ReactiveEffect 类型的数据
-  const effect = depsMap.get(key)
-  // 如果 effect 不存在，则直接 return
-  if (!effect) return
-  // 执行 effect 中保存的函数
-  effect.fn()
-  console.log('触发依赖', target, key)
+  if (!depsMap) {
+    return
+  }
+  // 依据指定的 key，获取 dep 实例
+  let dep: Dep | undefined = depsMap.get(key)
+  // dep 不存在则直接 return
+  if (!dep) {
+    return
+  }
+  // 触发 dep
+  triggerEffects(dep)
 }
 
 /**
@@ -79,4 +97,23 @@ export function effect<T = any>(fn: () => T) {
   console.log({ _effect })
   // 执行 run 函数
   _effect.run()
+}
+
+/**
+ * 依次触发 dep 中保存的依赖
+ */
+export function triggerEffects(dep: Dep) {
+  // 把 dep 构建为一个数组
+  const effects = Array.isArray(dep) ? dep : [...dep]
+  // 依次触发
+  for (const effect of effects) {
+    triggerEffect(effect)
+  }
+}
+
+/**
+ * 触发指定的依赖
+ */
+export function triggerEffect(effect: ReactiveEffect) {
+  effect.run()
 }
