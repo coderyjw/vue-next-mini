@@ -37,7 +37,7 @@ function createSetter() {
   ) {
     const result = Reflect.set(target, key, value, receiver)
 
-    trigger(target, key, value)
+    trigger(target, key)
     return result
   }
 }
