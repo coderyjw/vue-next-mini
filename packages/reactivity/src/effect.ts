@@ -1,6 +1,13 @@
 import { Dep, createDep } from './dep'
+import { ComputedRefImpl } from './computed'
 
 type KeyToDepMap = Map<any, Dep>
+
+/**
+ * 单例的，当前的 effect
+ */
+export let activeEffect: ReactiveEffect | undefined
+
 /**
  * 收集所有依赖的 WeakMap 实例
  * 1. key: 响应性对象
@@ -32,7 +39,6 @@ export function track(target: object, key: unknown) {
   }
 
   trackEffects(dep)
-  console.log('收集依赖', targetMap)
 }
 
 /**
@@ -58,6 +64,7 @@ export function trigger(target: object, key: unknown) {
   }
   // 依据指定的 key，获取 dep 实例
   let dep: Dep | undefined = depsMap.get(key)
+  console.log({ dep })
   // dep 不存在则直接 return
   if (!dep) {
     return
@@ -67,15 +74,18 @@ export function trigger(target: object, key: unknown) {
 }
 
 /**
- * 单例的，当前的 effect
- */
-export let activeEffect: ReactiveEffect | undefined
-
-/**
  * 响应性触发依赖时的执行类
  */
 export class ReactiveEffect<T = any> {
-  constructor(public fn: () => T) {}
+  constructor(
+    public fn: () => T,
+    public scheduler: EffectScheduler | null = null
+  ) {}
+
+  /**
+   * 存在该属性，则表示当前的 effect 为计算属性的 effect
+   */
+  computed?: ComputedRefImpl<T>
 
   run() {
     // 为 activeEffect 赋值
@@ -111,8 +121,17 @@ export function triggerEffects(dep: Dep) {
 }
 
 /**
- * 触发指定的依赖
+ * 触发指定依赖
  */
 export function triggerEffect(effect: ReactiveEffect) {
-  effect.run()
+  // 存在调度器就执行调度函数
+  if (effect.scheduler) {
+    effect.scheduler()
+  }
+  // 否则直接执行 run 函数即可
+  else {
+    effect.run()
+  }
 }
+
+export type EffectScheduler = (...args: any[]) => any
