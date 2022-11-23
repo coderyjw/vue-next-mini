@@ -94,7 +94,6 @@ export class ReactiveEffect<T = any> {
 export function effect<T = any>(fn: () => T) {
   // 生成 ReactiveEffect 实例
   const _effect = new ReactiveEffect(fn)
-  console.log({ _effect })
   // 执行 run 函数
   _effect.run()
 }

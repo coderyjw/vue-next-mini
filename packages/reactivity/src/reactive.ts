@@ -1,5 +1,5 @@
 import { mutableHandlers } from './baseHandlers'
-import { isObject } from '../../shared/src/index'
+import { isObject } from '@vue/shared'
 
 /**
  * 响应性 Map 缓存对象

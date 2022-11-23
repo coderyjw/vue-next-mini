@@ -150,7 +150,6 @@ var Vue = (function (exports) {
     function effect(fn) {
         // 生成 ReactiveEffect 实例
         var _effect = new ReactiveEffect(fn);
-        console.log({ _effect: _effect });
         // 执行 run 函数
         _effect.run();
     }
@@ -222,6 +221,12 @@ var Vue = (function (exports) {
     var isObject = function (val) {
         return val !== null && typeof val === 'object';
     };
+    /**
+     * 对比两个数据是否发生了改变
+     */
+    var hasChanged = function (value, oldValue) {
+        return !Object.is(value, oldValue);
+    };
 
     /**
      * 响应性 Map 缓存对象
@@ -290,6 +295,7 @@ var Vue = (function (exports) {
             this.__v_isRef = true;
             // 如果 __v_isShallow 为 true，则 value 不会被转化为 reactive 数据，即如果当前 value 为复杂数据类型，则会失去响应性。对应官方文档 shallowRef ：https://cn.vuejs.org/api/reactivity-advanced.html#shallowref
             this._value = __v_isShallow ? value : toReactive(value);
+            this._rawValue = value;
         }
         Object.defineProperty(RefImpl.prototype, "value", {
             /**
@@ -300,7 +306,21 @@ var Vue = (function (exports) {
                 trackRefValue(this);
                 return this._value;
             },
-            set: function (newVal) { },
+            set: function (newVal) {
+                /**
+                 * newVal 为新数据
+                 * this._rawValue 为旧数据（原始数据）
+                 * 对比两个数据是否发生了变化
+                 */
+                if (hasChanged(newVal, this._rawValue)) {
+                    // 更新原始数据
+                    this._rawValue = newVal;
+                    // 更新 .value 的值
+                    this._value = toReactive(newVal);
+                    // 触发依赖
+                    triggerRefValue(this);
+                }
+            },
             enumerable: false,
             configurable: true
         });
@@ -319,6 +339,14 @@ var Vue = (function (exports) {
      */
     function isRef(r) {
         return !!(r && r.__v_isRef === true);
+    }
+    /**
+     * 为 ref 的 value 进行触发依赖工作
+     */
+    function triggerRefValue(ref) {
+        if (ref.dep) {
+            triggerEffects(ref.dep);
+        }
     }
 
     exports.effect = effect;
