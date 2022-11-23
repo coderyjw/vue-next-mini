@@ -1,4 +1,4 @@
-import { Dep, createDep } from './deps'
+import { Dep, createDep } from './dep'
 
 type KeyToDepMap = Map<any, Dep>
 /**

@@ -8,27 +8,21 @@
   </head>
   <body>
     <div id="app"></div>
-    <div id="app1"></div>
-    <div id="app2"></div>
+
     <script src="../../dist/vue.js"></script>
     <script>
-      const { reactive, effect, ref } = Vue
-      const obj = reactive({
+      const { effect, ref } = Vue
+      const obj = ref({
         message: 'hello world'
       })
-      console.log(obj.message)
+      console.log(obj)
 
       effect(() => {
-        document.querySelector('#app').innerText = obj.message
+        document.querySelector('#app').innerText = obj.value.message
       })
-      effect(() => {
-        document.querySelector('#app1').innerText = obj.message
-      })
-      effect(() => {
-        document.querySelector('#app2').innerText = obj.message
-      })
+
       setTimeout(() => {
-        obj.message = 'coder'
+        obj.value.message = 'coder'
       }, 2000)
     </script>
   </body>
